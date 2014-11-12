@@ -1,7 +1,8 @@
-package com.lucena.awaywater;
+package com.awaywater.io;
 
 import android.content.Context;
 import android.os.Vibrator;
+
 
 public final class Settings {
 
@@ -12,4 +13,5 @@ public final class Settings {
 		vibrator = (Vibrator) context.getSystemService(context.VIBRATOR_SERVICE);
 	
 	}
+
 }

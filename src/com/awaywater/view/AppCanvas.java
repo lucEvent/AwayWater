@@ -1,4 +1,4 @@
-package com.lucena.awaywater;
+package com.awaywater.view;
 
 import android.content.Context;
 import android.graphics.Bitmap;

@@ -1,4 +1,6 @@
-package com.lucena.awaywater;
+package com.awaywater.view;
+
+import com.awaywater.io.Settings;
 
 import android.content.Context;
 import android.graphics.Canvas;
