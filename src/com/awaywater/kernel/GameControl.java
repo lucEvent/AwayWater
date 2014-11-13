@@ -1,23 +1,23 @@
-package com.awaywater.view;
+package com.awaywater.kernel;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.os.Handler;
 import android.util.Log;
 
-import com.awaywater.kernel.MapGenerator;
-import com.awaywater.kernel.TypeofGround;
-import com.awaywater.kernel.World;
-import com.awaywater.kernel.WorldFactory;
+import com.awaywater.io.Settings;
 import com.awaywater.net.Network;
 
 public class GameControl implements Runnable {
 
+	private static final String DEBUG = "##GameControl##";
+
 	public static final int REQUEST_MAP = 0;
 
-	private static final String DEBUG = "##GameControl##";
+	public Settings settings;
 
 	private WorldFactory worldfactory;
 	private MapGenerator generator;
@@ -26,26 +26,28 @@ public class GameControl implements Runnable {
 	private Network network;
 
 	/** THREAD VARIABLES **/
-	private static Thread thread;
 	public boolean isRunning;
-	private boolean initParamsFlag;
 	private boolean generateMapFlag;
 
 	/** GAME COMPOUNTS **/
-	private static TypeofGround[][] mapMaze;
-	private static int width;
-	private static int height;
+	private TypeofGround[][] mapMaze;
+	private int width;
+	private int height;
 
 	public GameControl(Network network) {
 		this.worldfactory = new WorldFactory();
 		this.generator = new MapGenerator();
-
 		this.level = 0;
-
 		this.network = network;
-
 		generateMapFlag = false;
-		initParamsFlag = false;
+		this.settings = new Settings();
+		this.width = 0;
+		this.height = 0;
+		this.handler = new Handler();
+	}
+
+	public boolean hasDimension() {
+		return width != 0;
 	}
 
 	public void getMaze(int width, int height) {
@@ -55,6 +57,10 @@ public class GameControl implements Runnable {
 		new Thread(this).start();
 	}
 
+	public World getActualWorld() {
+		return settings.getWorld();
+	}
+
 	@Override
 	public void run() {
 		if (generateMapFlag) {
@@ -62,12 +68,15 @@ public class GameControl implements Runnable {
 		}
 	}
 
+	private Handler handler;
+
 	private void generateMap() {
+		Log.d(DEBUG, "Generating map");
 		generateMapFlag = false;
 
-		Bitmap result = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+		final Bitmap result = Bitmap.createBitmap(width, height, Config.ARGB_8888);
 		Canvas canvas = new Canvas(result);
-		Matrix matrix = new Matrix();
+		// Matrix matrix = new Matrix();
 
 		int widthMap = WorldFactory.LEVEL_WIDTH[level++];
 		int heightMap = (widthMap * height) / width;
@@ -85,9 +94,9 @@ public class GameControl implements Runnable {
 		}
 
 		TypeofGround[][] map = mapMaze;
-		World world = WorldFactory.FOREST;
-		int startSquare = generator.getStartSquare();
 
+		int startSquare = generator.getStartSquare();
+		World world = settings.getWorld();
 		int pixelsX = width / map.length;
 		int pixelsY = height / map[0].length;
 
@@ -122,7 +131,12 @@ public class GameControl implements Runnable {
 
 		canvas.drawRect(l, u, r, d, WorldFactory.BALL);
 
-		network.message(Network.RESULT_OK, REQUEST_MAP, result);
+		handler.post(new Runnable() {
+			@Override
+			public void run() {
+					network.message(Network.RESULT_OK, REQUEST_MAP, result);
+			}
+		});
+		Log.d(DEBUG, "Generated map");
 	}
-
 }

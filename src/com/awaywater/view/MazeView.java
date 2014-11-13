@@ -1,20 +1,26 @@
 package com.awaywater.view;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Handler;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.awaywater.io.Settings;
+import com.awaywater.kernel.GameControl;
 import com.awaywater.kernel.World;
 import com.awaywater.kernel.WorldFactory;
 import com.awaywater.net.Network;
@@ -22,36 +28,47 @@ import com.awaywater.net.Network;
 public class MazeView extends ImageView implements OnTouchListener,
 		SensorEventListener, Network {
 
-	private static final String DEBUG = "##Maze##";
+	private static final String DEBUG = "##MazeView##";
 
 	public World actualWorld;
 	public boolean moving;
 
 	private boolean crashBounds;
 
-	private TextView debugUp, debugDown;
-
 	private GameControl control;
 
 	public MazeView(Context context) {
 		super(context);
-
-		control = new GameControl(this);
-		control.getMaze(getWidth(), getHeight());
-
-		Log.d(DEBUG, "En el constructor de MAZE");
+		initialize(context);
 	}
 
-	public void initialize(Context context, TextView consoleUp,
-			TextView consoleDown) {
+	public MazeView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		initialize(context);
+	}
+
+	private void initialize(Context context) {
 		moving = false;
 		crashBounds = false;
 		checkAccelerometer(context);
 		setOnTouchListener(this);
+	}
 
-		debugUp = consoleUp;
-		debugDown = consoleDown;
+	public void setControl(GameControl control) {
+		this.control = control;
+		this.actualWorld = control.getActualWorld();
+	}
 
+	@Override
+	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+		Log.d(DEBUG, "On measure");
+		int width = MeasureSpec.getSize(widthMeasureSpec);
+		int height = MeasureSpec.getSize(heightMeasureSpec);
+		this.setMeasuredDimension(width, height);
+		if (!control.hasDimension()) {
+			control.getMaze(width, height);
+		}
+		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 	}
 
 	private long[] vibseq = { 150, 150 };
@@ -61,12 +78,11 @@ public class MazeView extends ImageView implements OnTouchListener,
 
 	@Override
 	protected void onDraw(Canvas canvas) {
-		super.onDraw(canvas);
-		Bitmap bitmap = getDrawingCache();
+//		super.onDraw(canvas);
 
 		int lf, tp, rg, bt;
 
-		debugDown.setText("xAcc: " + accX + "  yAcc: " + accY);
+		Log.d(DEBUG, "xAcc: " + accX + "  yAcc: " + accY);
 		lf = left - (int) (accX + 0.5);
 		tp = top + (int) (accY + 0.5);
 		rg = right - (int) (accX + 0.5);
@@ -93,12 +109,12 @@ public class MazeView extends ImageView implements OnTouchListener,
 			for (int i = tp - 5; i < bt + 5; ++i) {
 				for (int j = lf - 2; j < rg + 2; ++j) {
 					char c;
-					if (actualWorld.ROAD.getColor() == bitmap.getPixel(j, i)) {
+					if (actualWorld.ROAD.getColor() == background.getPixel(j, i)) {
 						c = 'R';
-					} else if (actualWorld.WALL.getColor() == bitmap.getPixel(
-							j, i)) {
+					} else if (actualWorld.WALL.getColor() == background
+							.getPixel(j, i)) {
 						c = 'W';
-					} else if (actualWorld.NOTREACHABLE.getColor() == bitmap
+					} else if (actualWorld.NOTREACHABLE.getColor() == background
 							.getPixel(j, i)) {
 						c = 'N';
 					} else {
@@ -111,6 +127,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 		}
 		// Cheching
 		if (lf == left && top == tp) {
+			Log.d(DEBUG, "Se queda en el checking");
 			return;
 		}
 		Log.d(DEBUG, "l:" + lf + "  t:" + tp + "  rg:" + rg + "  bt:" + bt);
@@ -119,7 +136,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 		if (lf < left) { // Check left
 			Log.d(DEBUG, "Looking left");
 			for (int i = tp; i <= bt; ++i) {
-				if (bitmap.getPixel(lf, i) == color) {
+				if (background.getPixel(lf, i) == color) {
 					Log.d(DEBUG, "Breaking on x:" + lf + "  y:" + i);
 					lf = left;
 					rg = right;
@@ -129,7 +146,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 		} else { // Check right
 			Log.d(DEBUG, "Looking right");
 			for (int i = tp; i <= bt; ++i) {
-				if (bitmap.getPixel(rg, i) == color) {
+				if (background.getPixel(rg, i) == color) {
 					Log.d(DEBUG, "Breaking on x:" + rg + "  y:" + i);
 					lf = left;
 					rg = right;
@@ -141,7 +158,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 			// Check top
 			Log.d(DEBUG, "Looking TOP");
 			for (int i = lf; i <= rg; ++i) {
-				if (bitmap.getPixel(i, tp) == color) {
+				if (background.getPixel(i, tp) == color) {
 					tp = top;
 					bt = bottom;
 					break;
@@ -150,7 +167,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 		} else { // Check bottom
 			Log.d(DEBUG, "Looking BOTTOM");
 			for (int i = lf; i <= rg; ++i) {
-				if (bitmap.getPixel(i, bt) == color) {
+				if (background.getPixel(i, bt) == color) {
 					tp = top;
 					bt = bottom;
 					break;
@@ -162,6 +179,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 				+ "  bottom:" + bottom);
 		Log.d(DEBUG, "###################################################");
 		if (lf == left && top == tp) {
+			Log.d(DEBUG, "Acabando en el segundo checking");
 			return;
 		}
 
@@ -182,9 +200,10 @@ public class MazeView extends ImageView implements OnTouchListener,
 	// //////////////**METODOS ONTOUCH**/////////////////////
 	@Override
 	public boolean onTouch(View v, MotionEvent event) {
-		Log.d(DEBUG, "onTouch->					" + System.currentTimeMillis());
 		if (event.getAction() == MotionEvent.ACTION_UP) {
 			// pausar/reanudar juego
+			Log.d(DEBUG, "onTouch UP");
+			moving = !moving;
 		}
 		return true;
 	}
@@ -195,9 +214,17 @@ public class MazeView extends ImageView implements OnTouchListener,
 	public void onAccuracyChanged(Sensor sen, int acc) {
 	}
 
+	int count = 0;
+	
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		if (moving) {
+			count++;
+			if (count%100 != 1) {
+				return;
+			}
+			accX = event.values[0];
+			accY = event.values[1];
 			invalidate();
 		}
 	}
@@ -205,15 +232,6 @@ public class MazeView extends ImageView implements OnTouchListener,
 	boolean deb = true;
 
 	int left, top, right, bottom;
-
-	public void setParameters(int left, int top, int right, int bottom, World w) {
-		this.left = left;
-		this.top = top;
-		this.right = right;
-		this.bottom = bottom;
-		actualWorld = w;
-		moving = true;
-	}
 
 	private void checkAccelerometer(Context context) {
 		SensorManager manager = (SensorManager) context
@@ -245,10 +263,15 @@ public class MazeView extends ImageView implements OnTouchListener,
 	private Bitmap background;
 
 	@Override
-	public void message(int resultCode, int requestCode, Object result) {
+	public void message(int resultCode, int requestCode, final Object result) {
+		Log.d(DEBUG, "Receiving");
 		if (resultCode == Network.RESULT_OK) {
 			if (requestCode == GameControl.REQUEST_MAP) {
+				Log.d(DEBUG, "Setting");
 				background = (Bitmap) result;
+				setBackground(new BitmapDrawable((Bitmap) result));
+				invalidate();
+				moving = true;
 			}
 		}
 

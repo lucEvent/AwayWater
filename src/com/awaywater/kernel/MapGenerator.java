@@ -6,14 +6,14 @@ import android.util.Log;
 
 public class MapGenerator implements Runnable {
 
-	// Constants
+	private static final String DEBUG = "##MapGenerator##";
+
 	private static final int NORTH = 0;
 	private static final int EAST = 1;
 	private static final int SOUTH = 2;
 	private static final int WEST = 3;
 
 	// Variables for running
-	private Thread thread;
 	private Random rand;
 	public boolean isGenerated;
 
@@ -24,11 +24,7 @@ public class MapGenerator implements Runnable {
 	private int start;
 	private int finaly;
 
-	// Constructor call
 	public MapGenerator() {
-		Log.d("##MapGenerator##",
-				"constructor->		" + System.currentTimeMillis());
-		thread = new Thread(this);
 		rand = new Random();
 		isGenerated = true;
 	}
@@ -37,8 +33,7 @@ public class MapGenerator implements Runnable {
 	// Note that map maze isnt generated at returning of this function,
 	// you must comprove public isGenerated variable
 	public void generate(TypeofGround[][] maze, int width, int height, int start) {
-		Log.d("##MapGenerator##",
-				"generate()->			" + System.currentTimeMillis());
+		Log.d(DEBUG, "En generate para llamar al thread");
 		map = maze;
 		this.width = width;
 		this.height = height;
@@ -49,15 +44,13 @@ public class MapGenerator implements Runnable {
 			this.start = start;
 
 		isGenerated = false;
-		thread.start();
+		new Thread(this).start();
 	}
 
 	// Functions that changes goOn function behavior
-	public void defineTypeofMap(int type/** Need some parameters **/
-	) {
+	public void defineTypeofMap(int type/** Need some parameters **/) {
 		// Needs to be implemented
-		Log.d("##MapGenerator##",
-				"definetypeofview()->	" + System.currentTimeMillis());
+		Log.d(DEBUG, "defineTypeofMap");
 	}
 
 	// WARNING: Do not call this function
@@ -65,8 +58,7 @@ public class MapGenerator implements Runnable {
 	@Override
 	public void run() {
 		while (finaly < 0) {
-			Log.d("##MapGenerator##",
-					"RunStarts->			" + System.currentTimeMillis());
+			Log.d(DEBUG, "Run starts");
 			// Initialize to Road (false)
 			for (int j = 0; j < height; j++) {
 				for (int i = 0; i < width; i++) {
@@ -91,7 +83,7 @@ public class MapGenerator implements Runnable {
 			advancePosition(startx, starty, WEST);
 		}
 		isGenerated = true;
-		Log.d("##MapGenerator##", "RunEnds->" + System.currentTimeMillis());
+		Log.d(DEBUG, "Run Ends");
 	}
 
 	private void advancePosition(int posx, int posy, int directionFrom) {
