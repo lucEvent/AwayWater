@@ -1,17 +1,12 @@
 package com.awaywater.view;
 
 import android.content.Context;
-import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.ColorFilter;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -19,10 +14,11 @@ import android.view.View;
 import android.view.View.OnTouchListener;
 import android.widget.ImageView;
 
-import com.awaywater.io.Settings;
+import com.awaywater.harware.Vibrator;
 import com.awaywater.kernel.GameControl;
 import com.awaywater.kernel.World;
-import com.awaywater.kernel.WorldFactory;
+import com.awaywater.kernel.basic.Map;
+import com.awaywater.kernel.basic.Vector;
 import com.awaywater.net.Network;
 
 public class MazeView extends ImageView implements OnTouchListener,
@@ -31,11 +27,21 @@ public class MazeView extends ImageView implements OnTouchListener,
 	private static final String DEBUG = "##MazeView##";
 
 	public World actualWorld;
-	public boolean moving;
 
+	public boolean moving;
 	private boolean crashBounds;
 
 	private GameControl control;
+
+	
+	private Vibrator vibrator;
+
+	private long[] vibseq = { 150, 150 };
+
+	private float accX = 0;
+	private float accY = 0;
+
+	private Map map;
 
 	public MazeView(Context context) {
 		super(context);
@@ -51,6 +57,7 @@ public class MazeView extends ImageView implements OnTouchListener,
 		moving = false;
 		crashBounds = false;
 		checkAccelerometer(context);
+		vibrator = new Vibrator(context);
 		setOnTouchListener(this);
 	}
 
@@ -71,127 +78,63 @@ public class MazeView extends ImageView implements OnTouchListener,
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 	}
 
-	private long[] vibseq = { 150, 150 };
-
-	private float accX = 0;
-	private float accY = 0;
-
 	@Override
 	protected void onDraw(Canvas canvas) {
-//		super.onDraw(canvas);
+		Log.d(DEBUG, "Drawing");
+		// super.onDraw(canvas);
+		Vector move = new Vector((int) (accX + 0.5), (int) (accY + 0.5));
 
-		int lf, tp, rg, bt;
-
-		Log.d(DEBUG, "xAcc: " + accX + "  yAcc: " + accY);
-		lf = left - (int) (accX + 0.5);
-		tp = top + (int) (accY + 0.5);
-		rg = right - (int) (accX + 0.5);
-		bt = bottom + (int) (accY + 0.5);
-
-		int color = actualWorld.WALL.getColor();
-
-		// Comprovem que el limit de la bola no toca pared (per coordenades)
-		if (lf < 0) {
-			Log.d(DEBUG, "Tocando banda izquierda");
-			return;
-		}
-		if (rg >= getWidth()) {
-			// Canvi de mazeview i level
-			Log.d(DEBUG, "Tocando banda derecha");
+		if (move.compX == 0 && move.compY == 0) {// Si no se ha movido
 			return;
 		}
 
-		// debug
-		deb = false;
-		// if (!deb) return;
-		if (lf - 2 >= 0 && deb) {
-			deb = false;
-			for (int i = tp - 5; i < bt + 5; ++i) {
-				for (int j = lf - 2; j < rg + 2; ++j) {
-					char c;
-					if (actualWorld.ROAD.getColor() == background.getPixel(j, i)) {
-						c = 'R';
-					} else if (actualWorld.WALL.getColor() == background
-							.getPixel(j, i)) {
-						c = 'W';
-					} else if (actualWorld.NOTREACHABLE.getColor() == background
-							.getPixel(j, i)) {
-						c = 'N';
-					} else {
-						c = '*';
-					}
-					System.out.print(" " + c);
-				}
-				System.out.println(" ");
-			}
-		}
-		// Cheching
-		if (lf == left && top == tp) {
-			Log.d(DEBUG, "Se queda en el checking");
+		// Se llega a los bordes
+		if (map.piece.getLeft() + move.compX == 0) {
+			// Toca por la izquierda
 			return;
 		}
-		Log.d(DEBUG, "l:" + lf + "  t:" + tp + "  rg:" + rg + "  bt:" + bt);
-		Log.d(DEBUG, "left:" + left + "  top:" + top + "  right:" + right
-				+ "  bottom:" + bottom);
-		if (lf < left) { // Check left
-			Log.d(DEBUG, "Looking left");
-			for (int i = tp; i <= bt; ++i) {
-				if (background.getPixel(lf, i) == color) {
-					Log.d(DEBUG, "Breaking on x:" + lf + "  y:" + i);
-					lf = left;
-					rg = right;
-					break;
-				}
-			}
-		} else { // Check right
-			Log.d(DEBUG, "Looking right");
-			for (int i = tp; i <= bt; ++i) {
-				if (background.getPixel(rg, i) == color) {
-					Log.d(DEBUG, "Breaking on x:" + rg + "  y:" + i);
-					lf = left;
-					rg = right;
-					break;
-				}
-			}
+		if (map.piece.getRight() + move.compX == map.width) {
+			// Toca por la derecha
+			return;
 		}
-		if (tp < top) {
-			// Check top
-			Log.d(DEBUG, "Looking TOP");
-			for (int i = lf; i <= rg; ++i) {
-				if (background.getPixel(i, tp) == color) {
-					tp = top;
-					bt = bottom;
-					break;
-				}
-			}
-		} else { // Check bottom
-			Log.d(DEBUG, "Looking BOTTOM");
-			for (int i = lf; i <= rg; ++i) {
-				if (background.getPixel(i, bt) == color) {
-					tp = top;
-					bt = bottom;
-					break;
-				}
-			}
+		if (map.piece.getTop() + move.compY == 0) {
+			// Toca por arriba
+			return;
 		}
-		Log.d(DEBUG, "l:" + lf + "  t:" + tp + "  rg:" + rg + "  bt:" + bt);
-		Log.d(DEBUG, "left:" + left + "  top:" + top + "  right:" + right
-				+ "  bottom:" + bottom);
-		Log.d(DEBUG, "###################################################");
-		if (lf == left && top == tp) {
-			Log.d(DEBUG, "Acabando en el segundo checking");
+		if (map.piece.getBottom() + move.compY == map.height) {
+			// Toca por abajo
 			return;
 		}
 
-		canvas.drawRect(left, top, right, bottom, actualWorld.ROAD);
-		left = lf;
-		top = tp;
-		right = rg;
-		bottom = bt;
-		canvas.drawRect(left, top, right, bottom, WorldFactory.BALL);
+		// Se calcula la nueva posicion
+		Vector readjust = null;
+		while (true) {
+			readjust = map.piece.check(map.bitmap, actualWorld.WALL.getColor(),
+					move);
+			if (readjust.compX == 0 && readjust.compY == 0) {
+				break;
+			} else {
+				crashBounds = true;
+				move.compX -= readjust.compX;
+				move.compY -= readjust.compY;
+			}
+		}
+
+		if (move.compX == 0 && move.compY == 0) {// Si no se ha movido
+			return;
+		}
+
+		// Se borra de su antigua posicion
+		canvas.drawRect(map.piece.getLeft(), map.piece.getTop(),
+				map.piece.getRight(), map.piece.getBottom(), actualWorld.ROAD);
+
+		map.piece.move(move);
+		// Se pinta en su nueva posicion
+		canvas.drawRect(map.piece.getLeft(), map.piece.getTop(),
+				map.piece.getRight(), map.piece.getBottom(), actualWorld.ROAD);
 
 		if (crashBounds) {
-			Settings.vibrator.vibrate(vibseq, 1);
+			vibrator.vibrate(vibseq, 1);
 			crashBounds = false;
 		}
 	}
@@ -215,23 +158,20 @@ public class MazeView extends ImageView implements OnTouchListener,
 	}
 
 	int count = 0;
-	
+
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		if (moving) {
 			count++;
-			if (count%100 != 1) {
+			if (count % 100 != 1) {
 				return;
 			}
+			Log.d(DEBUG, "Invalidating");
 			accX = event.values[0];
 			accY = event.values[1];
 			invalidate();
 		}
 	}
-
-	boolean deb = true;
-
-	int left, top, right, bottom;
 
 	private void checkAccelerometer(Context context) {
 		SensorManager manager = (SensorManager) context
@@ -260,16 +200,14 @@ public class MazeView extends ImageView implements OnTouchListener,
 		manager.unregisterListener(this);
 	}
 
-	private Bitmap background;
-
 	@Override
 	public void message(int resultCode, int requestCode, final Object result) {
 		Log.d(DEBUG, "Receiving");
 		if (resultCode == Network.RESULT_OK) {
 			if (requestCode == GameControl.REQUEST_MAP) {
 				Log.d(DEBUG, "Setting");
-				background = (Bitmap) result;
-				setBackground(new BitmapDrawable((Bitmap) result));
+				map = (Map) result;
+				setBackground(new BitmapDrawable(map.bitmap));
 				invalidate();
 				moving = true;
 			}

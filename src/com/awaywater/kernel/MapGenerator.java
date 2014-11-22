@@ -2,6 +2,9 @@ package com.awaywater.kernel;
 
 import java.util.Random;
 
+import com.awaywater.kernel.basic.Map;
+import com.awaywater.kernel.basic.TypeofGround;
+
 import android.util.Log;
 
 public class MapGenerator implements Runnable {
@@ -18,12 +21,8 @@ public class MapGenerator implements Runnable {
 	public boolean isGenerated;
 
 	// Variables for generating map
-	private TypeofGround[][] map;
-	private int width;
-	private int height;
-	private int start;
-	private int finaly;
-
+	private Map map;
+	
 	public MapGenerator() {
 		rand = new Random();
 		isGenerated = true;
@@ -34,14 +33,16 @@ public class MapGenerator implements Runnable {
 	// you must comprove public isGenerated variable
 	public void generate(TypeofGround[][] maze, int width, int height, int start) {
 		Log.d(DEBUG, "En generate para llamar al thread");
-		map = maze;
-		this.width = width;
-		this.height = height;
-		finaly = -1;
+		
+		map = new Map();
+		map.map = maze;
+		map.width = width;
+		map.height = height;
+		map.end = -1;
 		if (start <= 0) {
-			this.start = rand.nextInt(height - 2) + 1;
+			map.start = rand.nextInt(height - 2) + 1;
 		} else
-			this.start = start;
+			map.start = start;
 
 		isGenerated = false;
 		new Thread(this).start();
@@ -57,28 +58,28 @@ public class MapGenerator implements Runnable {
 	// You must call generate function to run this class
 	@Override
 	public void run() {
-		while (finaly < 0) {
+		while (map.end < 0) {
 			Log.d(DEBUG, "Run starts");
 			// Initialize to Road (false)
-			for (int j = 0; j < height; j++) {
-				for (int i = 0; i < width; i++) {
-					map[i][j] = TypeofGround.NOTVISITED;
+			for (int j = 0; j < map.height; j++) {
+				for (int i = 0; i < map.width; i++) {
+					map.map[i][j] = TypeofGround.NOTVISITED;
 				}
 			}
 			// Initialize bounds
-			for (int i = 0; i < width; ++i) {
-				map[i][0] = TypeofGround.WALL;
-				map[i][height - 1] = TypeofGround.WALL;
+			for (int i = 0; i < map.width; ++i) {
+				map.map[i][0] = TypeofGround.WALL;
+				map.map[i][map.height - 1] = TypeofGround.WALL;
 			}
-			for (int j = 0; j < height; ++j) {
-				map[0][j] = TypeofGround.WALL;
-				map[width - 1][j] = TypeofGround.WALL;
+			for (int j = 0; j < map.height; ++j) {
+				map.map[0][j] = TypeofGround.WALL;
+				map.map[map.width - 1][j] = TypeofGround.WALL;
 			}
 			// Initialize entrance
 			int startx = 1;
-			int starty = start;
-			map[0][starty] = TypeofGround.ROAD;
-			map[startx][starty] = TypeofGround.ROAD;
+			int starty = map.start;
+			map.map[0][starty] = TypeofGround.ROAD;
+			map.map[startx][starty] = TypeofGround.ROAD;
 			// Begining recursivity
 			advancePosition(startx, starty, WEST);
 		}
@@ -91,46 +92,46 @@ public class MapGenerator implements Runnable {
 		if (directionFrom != NORTH) {
 			// Going to North if possible
 			if (posy > 1) {
-				next = map[posx][posy - 1];
+				next = map.map[posx][posy - 1];
 				if (next == TypeofGround.NOTVISITED) {
 					if (goOn()) {
-						map[posx][posy - 1] = TypeofGround.ROAD;
+						map.map[posx][posy - 1] = TypeofGround.ROAD;
 						advancePosition(posx, posy - 1, SOUTH);
 					} else {
-						map[posx][posy - 1] = TypeofGround.WALL;
+						map.map[posx][posy - 1] = TypeofGround.WALL;
 					}
 				}
 			}
 		}
 		if (directionFrom != EAST) {
 			// Going to East if possible
-			if (posx + 2 == width) {
-				if (finaly == -1) {
-					map[posx + 1][posy] = TypeofGround.ROAD;
-					finaly = posy;
+			if (posx + 2 == map.width) {
+				if (map.end == -1) {
+					map.map[posx + 1][posy] = TypeofGround.ROAD;
+					map.end = posy;
 				}
-			} else if (posx + 1 < width) {
-				next = map[posx + 1][posy];
+			} else if (posx + 1 < map.width) {
+				next = map.map[posx + 1][posy];
 				if (next == TypeofGround.NOTVISITED) {
 					if (goOn()) {
-						map[posx + 1][posy] = TypeofGround.ROAD;
+						map.map[posx + 1][posy] = TypeofGround.ROAD;
 						advancePosition(posx + 1, posy, WEST);
 					} else {
-						map[posx + 1][posy] = TypeofGround.WALL;
+						map.map[posx + 1][posy] = TypeofGround.WALL;
 					}
 				}
 			}
 		}
 		if (directionFrom != SOUTH) {
 			// Going to South if possible
-			if (posy + 2 < height) {
-				next = map[posx][posy + 1];
+			if (posy + 2 < map.height) {
+				next = map.map[posx][posy + 1];
 				if (next == TypeofGround.NOTVISITED) {
 					if (goOn()) {
-						map[posx][posy + 1] = TypeofGround.ROAD;
+						map.map[posx][posy + 1] = TypeofGround.ROAD;
 						advancePosition(posx, posy + 1, NORTH);
 					} else {
-						map[posx][posy + 1] = TypeofGround.WALL;
+						map.map[posx][posy + 1] = TypeofGround.WALL;
 					}
 				}
 			}
@@ -139,13 +140,13 @@ public class MapGenerator implements Runnable {
 		if (directionFrom != WEST) {
 			// Going to West if possible
 			if (posx - 1 > 0) {
-				next = map[posx - 1][posy];
+				next = map.map[posx - 1][posy];
 				if (next == TypeofGround.NOTVISITED) {
 					if (goOn()) {
-						map[posx - 1][posy] = TypeofGround.ROAD;
+						map.map[posx - 1][posy] = TypeofGround.ROAD;
 						advancePosition(posx - 1, posy, EAST);
 					} else {
-						map[posx - 1][posy] = TypeofGround.WALL;
+						map.map[posx - 1][posy] = TypeofGround.WALL;
 					}
 				}
 			}
@@ -168,13 +169,9 @@ public class MapGenerator implements Runnable {
 			return rand.nextBoolean() || rand.nextBoolean();
 		}
 	}
-
-	public int getStartSquare() {
-		return start;
-	}
-
-	public int getFinalSquare() {
-		return finaly;
+	
+	public Map getMap() {
+		return map;
 	}
 
 }

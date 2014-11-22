@@ -1,4 +1,4 @@
-package com.awaywater.kernel;
+package com.awaywater.kernel.basic;
 
 public enum TypeofGround {
 

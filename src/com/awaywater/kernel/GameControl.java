@@ -9,6 +9,10 @@ import android.os.Handler;
 import android.util.Log;
 
 import com.awaywater.io.Settings;
+import com.awaywater.kernel.basic.Point;
+import com.awaywater.kernel.basic.SquarePiece;
+import com.awaywater.kernel.basic.TypeofGround;
+import com.awaywater.kernel.basic.Vector;
 import com.awaywater.net.Network;
 
 public class GameControl implements Runnable {
@@ -30,7 +34,6 @@ public class GameControl implements Runnable {
 	private boolean generateMapFlag;
 
 	/** GAME COMPOUNTS **/
-	private TypeofGround[][] mapMaze;
 	private int width;
 	private int height;
 
@@ -74,16 +77,15 @@ public class GameControl implements Runnable {
 		Log.d(DEBUG, "Generating map");
 		generateMapFlag = false;
 
-		final Bitmap result = Bitmap.createBitmap(width, height, Config.ARGB_8888);
-		Canvas canvas = new Canvas(result);
-		// Matrix matrix = new Matrix();
+		Bitmap bitmap = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+		Canvas canvas = new Canvas(bitmap);
 
 		int widthMap = WorldFactory.LEVEL_WIDTH[level++];
 		int heightMap = (widthMap * height) / width;
 
-		mapMaze = new TypeofGround[widthMap][heightMap];
+		TypeofGround[][] map = new TypeofGround[widthMap][heightMap];
 		generator.defineTypeofMap(0);
-		generator.generate(mapMaze, widthMap, heightMap, 0);
+		generator.generate(map, widthMap, heightMap, 0);
 		while (!generator.isGenerated) {
 			Log.d(DEBUG, "Esperando en el while");
 			try {
@@ -93,9 +95,7 @@ public class GameControl implements Runnable {
 			}
 		}
 
-		TypeofGround[][] map = mapMaze;
-
-		int startSquare = generator.getStartSquare();
+		int startSquare = generator.getMap().start;
 		World world = settings.getWorld();
 		int pixelsX = width / map.length;
 		int pixelsY = height / map[0].length;
@@ -123,18 +123,24 @@ public class GameControl implements Runnable {
 		}
 
 		// Drawing the ball (Soon wont be a ball)
-		int l, u, r, d;
-		l = drawOnX + 1;
-		u = startSquare * pixelsY + drawOnY;
-		r = l + pixelsX;
-		d = u + pixelsY;
+//		int l, t, r, b;
+		//		l = drawOnX + 1;
+		//		t = startSquare * pixelsY + drawOnY;
+		//r = l + pixelsX;
+		//b = t + pixelsY;
 
-		canvas.drawRect(l, u, r, d, WorldFactory.BALL);
+		//canvas.drawRect(l, t, r, b, WorldFactory.BALL);
+
+		SquarePiece p = new SquarePiece(new Point(drawOnX + 1, startSquare
+				* pixelsY + drawOnY), new Vector(pixelsX, pixelsY));
+		generator.getMap().piece = p;
+		generator.getMap().bitmap = bitmap;
 
 		handler.post(new Runnable() {
 			@Override
 			public void run() {
-					network.message(Network.RESULT_OK, REQUEST_MAP, result);
+				network.message(Network.RESULT_OK, REQUEST_MAP,
+						generator.getMap());
 			}
 		});
 		Log.d(DEBUG, "Generated map");
