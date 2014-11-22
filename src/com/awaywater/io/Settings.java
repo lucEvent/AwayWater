@@ -8,11 +8,11 @@ public final class Settings {
 	private static World world;
 
 	public Settings() {
-		setWorld();
+		setWorld(WorldFactory.CITY);
 	}
 
-	private void setWorld() {
-		world = WorldFactory.FOREST;
+	public void setWorld(World world) {
+		this.world = world;
 	}
 
 	public World getWorld() {

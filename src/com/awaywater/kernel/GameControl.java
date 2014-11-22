@@ -49,10 +49,6 @@ public class GameControl implements Runnable {
 		this.handler = new Handler();
 	}
 
-	public boolean hasDimension() {
-		return width != 0;
-	}
-
 	public void getMaze(int width, int height) {
 		this.width = width;
 		this.height = height;
@@ -64,6 +60,10 @@ public class GameControl implements Runnable {
 		return settings.getWorld();
 	}
 
+	public void setWorld(World world) {
+		settings.setWorld(world);
+	}
+	
 	@Override
 	public void run() {
 		if (generateMapFlag) {
@@ -95,21 +95,24 @@ public class GameControl implements Runnable {
 			}
 		}
 
-		int startSquare = generator.getMap().start;
 		World world = settings.getWorld();
 		int pixelsX = width / map.length;
 		int pixelsY = height / map[0].length;
 
-		int drawOnX = (width % map.length) / 2;
-		int drawOnY = (height % map[0].length) / 2;
-
-		// int accumulator = 1; //for improvement
-		for (int i = 0; i < map.length; ++i) {
-			for (int j = 0; j < map[0].length; ++j) {
-				Rect rec = new Rect(i * pixelsX + drawOnX, j * pixelsY
-						+ drawOnY, (i + 1) * pixelsX + drawOnX, (j + 1)
-						* pixelsY + drawOnY);
-				switch (map[i][j]) {
+		
+		int stopW = pixelsX*map.length;
+		int stopH = pixelsY*map[0].length;
+		
+		for (int i = 0; i < stopW; i +=pixelsX) {
+			for (int j = 0; j < stopH;j+=pixelsY) {
+				int left = i;
+				int right = i + pixelsX;
+				int top = j;
+				int bottom = j + pixelsY;
+				
+				Rect rec = new Rect(left, top, right, bottom);
+				
+				switch (map[i/pixelsX][j/pixelsY]) {
 				case WALL:
 					canvas.drawRect(rec, world.WALL);
 					break;
@@ -122,19 +125,11 @@ public class GameControl implements Runnable {
 			}
 		}
 
-		// Drawing the ball (Soon wont be a ball)
-//		int l, t, r, b;
-		//		l = drawOnX + 1;
-		//		t = startSquare * pixelsY + drawOnY;
-		//r = l + pixelsX;
-		//b = t + pixelsY;
-
-		//canvas.drawRect(l, t, r, b, WorldFactory.BALL);
-
-		SquarePiece p = new SquarePiece(new Point(drawOnX + 1, startSquare
-				* pixelsY + drawOnY), new Vector(pixelsX, pixelsY));
+		int startSquare = generator.getMap().start;
+		SquarePiece p = new SquarePiece(new Point(0, startSquare*pixelsY), new Vector(pixelsX-1, pixelsY-1));
 		generator.getMap().piece = p;
 		generator.getMap().bitmap = bitmap;
+		generator.getMap().world = world;
 
 		handler.post(new Runnable() {
 			@Override

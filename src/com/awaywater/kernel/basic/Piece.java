@@ -1,5 +1,7 @@
 package com.awaywater.kernel.basic;
 
+import com.awaywater.kernel.World;
+
 import android.graphics.Bitmap;
 
 public abstract class Piece {
@@ -14,7 +16,7 @@ public abstract class Piece {
 		this.position = new Point(X, Y);
 	}
 
-	public abstract Vector check(Bitmap map, int wallcolor, Vector movement);
+	public abstract Vector check(Bitmap map, int wallcolor, Vector movement, World debug);
 
 	public void move(Vector movement) {
 		position.x += movement.compX;
